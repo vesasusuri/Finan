@@ -41,6 +41,7 @@ setup_debug_logging()
 logger = get_logger(__name__)
 
 _IS_LOCAL = settings.environment == "local"
+_ENABLE_OPENAPI = _IS_LOCAL or settings.enable_openapi
 
 
 def _client_error_message(exc: Exception, *, fallback: str) -> str:
@@ -102,10 +103,16 @@ app = FastAPI(
     description="Internal invoice extraction and bank matching",
     version="0.2.0",
     lifespan=lifespan,
-    docs_url="/docs" if _IS_LOCAL else None,
+    docs_url="/docs" if _ENABLE_OPENAPI else None,
     redoc_url=None,
-    openapi_url="/openapi.json" if _IS_LOCAL else None,
+    openapi_url="/openapi.json" if _ENABLE_OPENAPI else None,
 )
+
+
+@app.get("/", tags=["health"])
+async def root():
+    """Public landing route for load balancers and deployment checks."""
+    return {"status": "ok", "message": "API is running"}
 
 
 @app.exception_handler(HTTPException)

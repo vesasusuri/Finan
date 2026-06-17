@@ -217,6 +217,9 @@ class Settings(BaseSettings):
         default=False, validation_alias="LOG_VERIFICATION_CODES"
     )
 
+    # Swagger / OpenAPI — disabled in production unless explicitly enabled.
+    enable_openapi: bool = Field(default=False, validation_alias="ENABLE_OPENAPI")
+
     # Auth rate limits (sliding window via Redis)
     auth_login_rate_limit: int = Field(default=5, validation_alias="AUTH_LOGIN_RATE_LIMIT")
     auth_login_rate_window_seconds: int = Field(
@@ -271,7 +274,7 @@ class Settings(BaseSettings):
 
 
 def validate_settings_on_startup() -> list[str]:
-    """Return non-fatal warnings for local misconfiguration."""
+    """Return non-fatal warnings for local or production misconfiguration."""
     warnings: list[str] = []
     if settings.environment == "local":
         if len(settings.jwt_secret) < 32:
@@ -280,6 +283,20 @@ def validate_settings_on_startup() -> list[str]:
             warnings.append("JWT_SECRET still uses a placeholder value")
         if settings.debug:
             warnings.append("DEBUG logging is enabled")
+    if settings.is_production_like:
+        if not settings.cors_origins.strip():
+            warnings.append("CORS_ORIGINS is empty — browser clients will fail")
+        if settings.storage_backend == "supabase":
+            if not settings.supabase_url:
+                warnings.append("SUPABASE_URL is missing")
+            if not settings.supabase_service_role_key:
+                warnings.append("SUPABASE_SERVICE_ROLE_KEY is missing")
+        if not settings.openai_api_key:
+            warnings.append("OPENAI_API_KEY is missing — OCR will not run")
+        if settings.redis_url.startswith("redis://localhost"):
+            warnings.append("REDIS_URL still points at localhost")
+        if not settings.smtp_host:
+            warnings.append("SMTP_HOST is empty — verification emails will not send")
     return warnings
 
 

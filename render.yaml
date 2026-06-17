@@ -1,11 +1,8 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
 # API/worker Docker build: repo root ./Dockerfile (copies backend/).
-
-databases:
-  - name: finance-ai-db
-    plan: free
-    databaseName: finance_ai
-    user: finance
+#
+# Database: use Supabase PostgreSQL (set DATABASE_URL manually in the dashboard).
+# Do not use Render Postgres unless you remove the Supabase URL.
 
 services:
   - type: keyvalue
@@ -24,9 +21,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: finance-ai-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -42,6 +37,8 @@ services:
         value: "true"
       - key: COOKIE_SAMESITE
         value: none
+      - key: ENABLE_OPENAPI
+        value: "true"
       - key: STORAGE_BACKEND
         value: supabase
       - key: SUPABASE_URL
@@ -52,6 +49,20 @@ services:
         value: invoices
       - key: STORAGE_PATH
         value: /data/uploads
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: EMAIL_INGEST_API_KEY
+        sync: false
+      - key: EMAIL_INGEST_USER_EMAIL
+        value: finance@borek.com
 
   - type: worker
     name: finance-ai-worker
@@ -60,9 +71,7 @@ services:
     dockerCommand: rq worker --url $REDIS_URL finance-ai ocr_high_priority ocr_normal review transaction
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: finance-ai-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -75,6 +84,11 @@ services:
           envVarKey: OPENAI_API_KEY
       - key: ENVIRONMENT
         value: production
+      - key: JWT_SECRET
+        fromService:
+          type: web
+          name: finance-ai-api
+          envVarKey: JWT_SECRET
       - key: STORAGE_BACKEND
         fromService:
           type: web
