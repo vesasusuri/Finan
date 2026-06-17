@@ -1,4 +1,4 @@
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -136,5 +136,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
 def get_current_user(request: Request) -> UserContext:
     user = getattr(request.state, "user", None)
     if user is None:
-        raise RuntimeError("UserContext not set — route requires authentication")
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "unauthorized",
+                "message": "Authentication required.",
+            },
+        )
     return user

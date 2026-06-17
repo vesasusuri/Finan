@@ -48,6 +48,10 @@ class DocumentService:
                 mime = validate_document_file(filename, file.content_type, len(content))
 
                 if is_ocr_ready(mime):
+                    if self._extraction is None:
+                        raise ExtractionError(
+                            "OCR is not configured on the server (OPENAI_API_KEY missing)."
+                        )
                     prepared = await self._extraction.prepare_upload(
                         file, user, content=content
                     )
@@ -155,11 +159,10 @@ class DocumentService:
         invoice_id = await self._invoice_repo.get_id_by_source_file(row.id)
         if invoice_id is None:
             return False
-        invoice = await self._invoice_repo.get(
+        return await self._invoice_repo.exists_visible_to_user(
             invoice_id,
             owner_user_id=user.user_id,
         )
-        return invoice is not None
 
     async def get_status(
         self,

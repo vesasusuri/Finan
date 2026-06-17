@@ -125,6 +125,18 @@ class InvoiceRepository:
         result = await self._session.execute(query)
         return result.scalar_one_or_none()
 
+    async def exists_visible_to_user(
+        self,
+        invoice_id: int,
+        *,
+        owner_user_id: int | None = None,
+    ) -> bool:
+        """True when the invoice row exists and is visible under owner scope."""
+        query = select(Invoice.id).where(Invoice.id == invoice_id)
+        query = _apply_owner_scope(query, owner_user_id)
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none() is not None
+
     async def get(
         self,
         invoice_id: int,

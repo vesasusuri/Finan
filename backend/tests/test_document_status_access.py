@@ -33,15 +33,13 @@ async def test_get_status_allows_invoice_shared_access(document_service: Documen
 
     document_service._upload_repo.get = AsyncMock(return_value=upload_row)
     document_service._invoice_repo.get_id_by_source_file = AsyncMock(return_value=273)
-    document_service._invoice_repo.get = AsyncMock(
-        return_value=MagicMock(id=273),
-    )
+    document_service._invoice_repo.exists_visible_to_user = AsyncMock(return_value=True)
 
     result = await document_service.get_status(141, _user(21))
 
     assert result.document_id == 141
     assert result.upload_status == "processed"
-    document_service._invoice_repo.get.assert_awaited_once_with(
+    document_service._invoice_repo.exists_visible_to_user.assert_awaited_once_with(
         273,
         owner_user_id=21,
     )

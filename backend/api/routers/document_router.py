@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from api.controllers.document_controller import DocumentController
-from api.dependencies import get_current_user, get_document_controller
+from api.dependencies import (
+    get_current_user,
+    get_document_controller,
+    get_document_status_controller,
+)
 from schemas.auth import UserContext
 from schemas.document import DocumentStatusResponse, DocumentUploadResponse
 
@@ -28,6 +32,6 @@ async def upload_documents(
 async def document_status(
     document_id: int,
     user: UserContext = Depends(get_current_user),
-    ctrl: DocumentController = Depends(get_document_controller),
+    ctrl: DocumentController = Depends(get_document_status_controller),
 ):
     return await ctrl.status(document_id, user)

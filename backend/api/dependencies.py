@@ -67,8 +67,12 @@ def require_admin(user: UserContext = Depends(get_current_user)) -> UserContext:
     return user
 
 
+def get_optional_openai_client(request: Request) -> AsyncOpenAI | None:
+    return getattr(request.app.state, "openai_client", None)
+
+
 def get_openai_client(request: Request) -> AsyncOpenAI:
-    client = getattr(request.app.state, "openai_client", None)
+    client = get_optional_openai_client(request)
     if client is None:
         from fastapi import HTTPException
 
@@ -132,7 +136,7 @@ async def get_invoice_extraction_service(
     invoice_access_repo: InvoiceAccessRepository = Depends(get_invoice_access_repo),
     audit_repo: AuditRepository = Depends(get_audit_repo),
     ai_validation: AIValidationService = Depends(get_ai_validation_service),
-    openai_client: AsyncOpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI | None = Depends(get_optional_openai_client),
 ) -> InvoiceExtractionService:
     return InvoiceExtractionService(
         upload_repo,
@@ -313,13 +317,27 @@ async def get_document_service(
     upload_repo: UploadRepository = Depends(get_upload_repo),
     invoice_repo: InvoiceRepository = Depends(get_invoice_repo),
     extraction: InvoiceExtractionService = Depends(get_invoice_extraction_service),
-    openai_client: AsyncOpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI | None = Depends(get_optional_openai_client),
 ) -> DocumentService:
     return DocumentService(upload_repo, invoice_repo, extraction, openai_client)
 
 
+async def get_document_status_service(
+    upload_repo: UploadRepository = Depends(get_upload_repo),
+    invoice_repo: InvoiceRepository = Depends(get_invoice_repo),
+) -> DocumentService:
+    """Read-only document status — no OpenAI or OCR dependencies."""
+    return DocumentService(upload_repo, invoice_repo, None, None)
+
+
 async def get_document_controller(
     service: DocumentService = Depends(get_document_service),
+) -> DocumentController:
+    return DocumentController(service)
+
+
+async def get_document_status_controller(
+    service: DocumentService = Depends(get_document_status_service),
 ) -> DocumentController:
     return DocumentController(service)
 
