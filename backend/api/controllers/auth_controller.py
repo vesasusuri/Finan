@@ -198,7 +198,14 @@ class AuthController:
                 code_hash=hash_verification_code(verification_code),
                 expires_at=verification_expires_at(),
             )
-            send_verification_code(user.email, verification_code)
+            email_result = send_verification_code(user.email, verification_code)
+            if not email_result.delivered:
+                logger.warning(
+                    "Verification email not delivered for user_id=%s (%s): %s",
+                    user.id,
+                    user.email,
+                    email_result.error,
+                )
         revoke_all_refresh_tokens(user.id)
         set_auth_cookies(response, user=user)
         await self._audit_security(
@@ -378,7 +385,23 @@ class AuthController:
             expires_at=verification_expires_at(),
         )
         clear_verification_attempts(user.id)
-        send_verification_code(user.email, verification_code)
+        email_result = send_verification_code(user.email, verification_code)
+        if not email_result.delivered:
+            logger.warning(
+                "Resend verification email failed for user_id=%s: %s",
+                user.id,
+                email_result.error,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "email_delivery_failed",
+                    "message": (
+                        "Could not send the verification email. "
+                        "Try again later or contact your administrator."
+                    ),
+                },
+            )
         set_auth_cookies(response, user=user)
         return _login_response(user)
 
@@ -434,6 +457,22 @@ class AuthController:
             code_hash=hash_verification_code(verification_code),
             expires_at=verification_expires_at(),
         )
-        send_verification_code(user.email, verification_code)
+        email_result = send_verification_code(user.email, verification_code)
+        if not email_result.delivered:
+            logger.warning(
+                "Verification email after password change failed for user_id=%s: %s",
+                user.id,
+                email_result.error,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "email_delivery_failed",
+                    "message": (
+                        "Password updated but the verification email could not be sent. "
+                        "Try resend verification or contact your administrator."
+                    ),
+                },
+            )
         set_auth_cookies(response, user=user)
         return _login_response(user)

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent
@@ -156,7 +156,10 @@ class Settings(BaseSettings):
         default="no-reply@borek.com",
         validation_alias="SMTP_FROM_EMAIL",
     )
-    smtp_use_tls: bool = Field(default=True, validation_alias="SMTP_USE_TLS")
+    smtp_use_tls: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("SMTP_USE_TLS", "SMTP_TLS"),
+    )
     log_level: str = Field(default="info", validation_alias="LOG_LEVEL")
     slow_route_ms: int = Field(default=1500, validation_alias="SLOW_ROUTE_MS")
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import secrets
-import smtplib
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -12,6 +11,7 @@ import bcrypt
 from config import settings
 from core.debug_logger import get_logger
 from models.user import User
+from services.smtp_service import EmailSendResult, send_email_message
 from services.verification_email_template import build_verification_email_message
 
 logger = get_logger(__name__)
@@ -96,10 +96,10 @@ def log_verification_code_for_local(email: str, code: str) -> None:
     )
 
 
-def send_verification_code(email: str, code: str) -> None:
+def send_verification_code(email: str, code: str) -> EmailSendResult:
     if not settings.smtp_host:
         log_verification_code_for_local(email, code)
-        return
+        return EmailSendResult(delivered=False, error="smtp_not_configured")
 
     message = build_verification_email_message(
         from_addr=settings.smtp_from_email,
@@ -108,10 +108,4 @@ def send_verification_code(email: str, code: str) -> None:
         code=code,
         ttl_minutes=VERIFICATION_CODE_TTL_MINUTES,
     )
-
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-        if settings.smtp_use_tls:
-            smtp.starttls()
-        if settings.smtp_username:
-            smtp.login(settings.smtp_username, settings.smtp_password)
-        smtp.send_message(message)
+    return send_email_message(message, context="verification_code")

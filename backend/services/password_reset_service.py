@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import math
 import secrets
-import smtplib
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 import bcrypt
 
 from config import settings
+from core.debug_logger import get_logger
 from models.user import User
 from services.password_reset_email_template import build_password_reset_email_message
+from services.smtp_service import EmailSendResult, send_email_message
+
+logger = get_logger(__name__)
 
 PASSWORD_RESET_TTL_MINUTES = 60
 PASSWORD_RESET_RESEND_COOLDOWN_MINUTES = 2
@@ -75,11 +78,11 @@ def log_reset_link_for_local(email: str, reset_url: str) -> None:
         )
 
 
-def send_password_reset_email(email: str, token: str) -> None:
+def send_password_reset_email(email: str, token: str) -> EmailSendResult:
     reset_url = build_reset_url(email, token)
     if not settings.smtp_host:
         log_reset_link_for_local(email, reset_url)
-        return
+        return EmailSendResult(delivered=False, error="smtp_not_configured")
 
     message = build_password_reset_email_message(
         from_addr=settings.smtp_from_email,
@@ -88,10 +91,4 @@ def send_password_reset_email(email: str, token: str) -> None:
         reset_url=reset_url,
         ttl_minutes=PASSWORD_RESET_TTL_MINUTES,
     )
-
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-        if settings.smtp_use_tls:
-            smtp.starttls()
-        if settings.smtp_username:
-            smtp.login(settings.smtp_username, settings.smtp_password)
-        smtp.send_message(message)
+    return send_email_message(message, context="password_reset")
