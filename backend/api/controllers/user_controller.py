@@ -3,6 +3,7 @@ from __future__ import annotations
 import bcrypt
 from fastapi import HTTPException, status
 
+from config import settings
 from core.roles import ROLE_FINANCE, is_valid_role
 from repositories.bank_statement_repository import BankStatementRepository
 from repositories.user_repository import UserRepository
@@ -66,6 +67,8 @@ class UserController:
             role=ROLE_FINANCE,
             must_change_password=True,
         )
+        if not settings.email_verification_enabled:
+            user = await self._user_repo.mark_email_verified(user)
 
         return UserSummary(
             id=user.id,

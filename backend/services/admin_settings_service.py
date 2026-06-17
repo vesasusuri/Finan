@@ -122,6 +122,12 @@ class AdminSettingsService:
                 group="Authentication",
             ),
             SettingItem(
+                key="email_verification",
+                label="Email verification",
+                value=_yes_no(settings.email_verification_enabled),
+                group="Email",
+            ),
+            SettingItem(
                 key="email_provider",
                 label="Email provider",
                 value=settings.effective_email_provider,

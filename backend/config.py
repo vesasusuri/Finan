@@ -170,6 +170,9 @@ class Settings(BaseSettings):
     postmark_server_token: str = Field(
         default="", validation_alias="POSTMARK_SERVER_TOKEN"
     )
+    email_verification_enabled: bool = Field(
+        default=False, validation_alias="EMAIL_VERIFICATION_ENABLED"
+    )
     log_level: str = Field(default="info", validation_alias="LOG_LEVEL")
     slow_route_ms: int = Field(default=1500, validation_alias="SLOW_ROUTE_MS")
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
@@ -333,7 +336,7 @@ def validate_settings_on_startup() -> list[str]:
         if not email_delivery_configured():
             warnings.append(
                 "Email delivery is not configured — set EMAIL_PROVIDER=resend "
-                "and RESEND_API_KEY (recommended on Render)"
+                "and RESEND_API_KEY when EMAIL_VERIFICATION_ENABLED=true"
             )
         if settings.redis_url.startswith("redis://localhost"):
             warnings.append("REDIS_URL still points at localhost")

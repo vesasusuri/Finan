@@ -105,7 +105,12 @@ async def test_login_with_must_change_password_skips_verification(
 async def test_login_without_must_change_password_sends_verification(
     auth_controller: AuthController,
     user_repo: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    monkeypatch.setattr(
+        "api.controllers.auth_controller.settings.email_verification_enabled",
+        True,
+    )
     user = _user(must_change_password=False, email_verified=True)
     updated = _user(must_change_password=False, email_verified=False)
     user_repo.find_by_email.return_value = user
@@ -132,7 +137,12 @@ async def test_login_without_must_change_password_sends_verification(
 async def test_change_password_clears_flag_and_sends_verification(
     auth_controller: AuthController,
     user_repo: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    monkeypatch.setattr(
+        "api.controllers.auth_controller.settings.email_verification_enabled",
+        True,
+    )
     user = _user(must_change_password=True)
     cleared = _user(must_change_password=False, email_verified=False)
     after_verify_setup = _user(must_change_password=False, email_verified=False)

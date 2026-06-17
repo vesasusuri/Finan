@@ -1,4 +1,4 @@
-"""Login must succeed when verification email delivery fails."""
+"""Auth behaviour when email verification is disabled."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import pytest
 from api.controllers.auth_controller import AuthController
 from models.user import User
 from schemas.auth import LoginRequest
-from services.email_types import EmailSendResult
 
 
 def _hash_password(password: str) -> str:
@@ -19,10 +18,10 @@ def _hash_password(password: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_login_continues_when_verification_email_fails(monkeypatch):
+async def test_login_skips_verification_email_when_disabled(monkeypatch):
     monkeypatch.setattr(
         "api.controllers.auth_controller.settings.email_verification_enabled",
-        True,
+        False,
     )
     user = User(
         id=1,
@@ -36,20 +35,15 @@ async def test_login_continues_when_verification_email_fails(monkeypatch):
     )
     user_repo = AsyncMock()
     user_repo.find_by_email.return_value = user
-    user_repo.set_email_verification_code.return_value = user
+    user_repo.mark_email_verified.return_value = user
     response = MagicMock()
     controller = AuthController(user_repo)
 
     with (
         patch("api.controllers.auth_controller.revoke_all_refresh_tokens"),
         patch("api.controllers.auth_controller.set_auth_cookies"),
-        patch(
-            "api.controllers.auth_controller.send_verification_code",
-            return_value=EmailSendResult(
-                delivered=False,
-                error="smtp_connection_failed: [Errno 101] Network is unreachable",
-            ),
-        ),
+        patch("api.controllers.auth_controller.send_verification_code") as send_code,
+        patch("api.controllers.auth_controller.generate_verification_code") as gen_code,
     ):
         result = await controller.login(
             LoginRequest(email=user.email, password="correcthorse1"),
@@ -57,4 +51,7 @@ async def test_login_continues_when_verification_email_fails(monkeypatch):
         )
 
     assert result.email == user.email
-    user_repo.set_email_verification_code.assert_awaited_once()
+    assert result.email_verified is True
+    gen_code.assert_not_called()
+    send_code.assert_not_called()
+    user_repo.mark_email_verified.assert_awaited_once()

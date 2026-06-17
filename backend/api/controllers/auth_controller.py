@@ -57,7 +57,24 @@ def _cookie_params() -> dict:
 
 
 def _user_auth_flags(user: User) -> tuple[bool, bool]:
-    return user.email_verified_at is not None, user.must_change_password
+    email_verified = (
+        user.email_verified_at is not None
+        if settings.email_verification_enabled
+        else True
+    )
+    return email_verified, user.must_change_password
+
+
+async def _ensure_email_verified_when_disabled(
+    user_repo: UserRepository,
+    user: User,
+) -> User:
+    """Persist verified state when email verification is turned off."""
+    if settings.email_verification_enabled:
+        return user
+    if user.email_verified_at is not None:
+        return user
+    return await user_repo.mark_email_verified(user)
 
 
 def _login_response(user: User) -> LoginResponse:
@@ -191,7 +208,7 @@ class AuthController:
 
     async def login(self, request: LoginRequest, response: Response) -> LoginResponse:
         user = await self._authenticate(request.email, request.password)
-        if not user.must_change_password:
+        if settings.email_verification_enabled and not user.must_change_password:
             verification_code = generate_verification_code()
             user = await self._user_repo.set_email_verification_code(
                 user,
@@ -206,6 +223,8 @@ class AuthController:
                     user.email,
                     email_result.error,
                 )
+        else:
+            user = await _ensure_email_verified_when_disabled(self._user_repo, user)
         revoke_all_refresh_tokens(user.id)
         set_auth_cookies(response, user=user)
         await self._audit_security(
@@ -301,6 +320,20 @@ class AuthController:
         body: VerifyEmailRequest,
         response: Response,
     ) -> LoginResponse:
+        if not settings.email_verification_enabled:
+            user = await self._user_repo.get(user_ctx.user_id)
+            if user is None or not user.is_active:
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "error": "invalid_session",
+                        "message": "Session expired. Please sign in again.",
+                    },
+                )
+            user = await _ensure_email_verified_when_disabled(self._user_repo, user)
+            set_auth_cookies(response, user=user)
+            return _login_response(user)
+
         check_verify_rate_limit(user_ctx.user_id)
         check_verification_attempts(user_ctx.user_id)
 
@@ -347,6 +380,15 @@ class AuthController:
         user_ctx: UserContext,
         response: Response,
     ) -> LoginResponse:
+        if not settings.email_verification_enabled:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "email_verification_disabled",
+                    "message": "Email verification is not enabled.",
+                },
+            )
+
         user = await self._user_repo.get(user_ctx.user_id)
         if user is None or not user.is_active:
             raise HTTPException(
@@ -451,28 +493,31 @@ class AuthController:
         user = await self._user_repo.get(user.id)
         assert user is not None
         revoke_all_refresh_tokens(user.id)
-        verification_code = generate_verification_code()
-        user = await self._user_repo.set_email_verification_code(
-            user,
-            code_hash=hash_verification_code(verification_code),
-            expires_at=verification_expires_at(),
-        )
-        email_result = send_verification_code(user.email, verification_code)
-        if not email_result.delivered:
-            logger.warning(
-                "Verification email after password change failed for user_id=%s: %s",
-                user.id,
-                email_result.error,
+        if settings.email_verification_enabled:
+            verification_code = generate_verification_code()
+            user = await self._user_repo.set_email_verification_code(
+                user,
+                code_hash=hash_verification_code(verification_code),
+                expires_at=verification_expires_at(),
             )
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "error": "email_delivery_failed",
-                    "message": (
-                        "Password updated but the verification email could not be sent. "
-                        "Try resend verification or contact your administrator."
-                    ),
-                },
-            )
+            email_result = send_verification_code(user.email, verification_code)
+            if not email_result.delivered:
+                logger.warning(
+                    "Verification email after password change failed for user_id=%s: %s",
+                    user.id,
+                    email_result.error,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "error": "email_delivery_failed",
+                        "message": (
+                            "Password updated but the verification email could not be sent. "
+                            "Try resend verification or contact your administrator."
+                        ),
+                    },
+                )
+        else:
+            user = await _ensure_email_verified_when_disabled(self._user_repo, user)
         set_auth_cookies(response, user=user)
         return _login_response(user)

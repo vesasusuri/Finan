@@ -114,12 +114,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
             and path.startswith("/api")
             and path not in PUBLIC_PATHS
             and path not in ONBOARDING_PATHS
-            and (not user.email_verified or user.must_change_password)
         ):
-            return _forbidden(
-                error="onboarding_required",
-                message="Complete email verification and password change before continuing.",
+            from config import settings
+
+            needs_verification = (
+                settings.email_verification_enabled and not user.email_verified
             )
+            if needs_verification or user.must_change_password:
+                return _forbidden(
+                    error="onboarding_required",
+                    message=(
+                        "Complete email verification and password change before continuing."
+                        if needs_verification
+                        else "Change your password before continuing."
+                    ),
+                )
 
         return await call_next(request)
 

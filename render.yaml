@@ -50,6 +50,8 @@ services:
         value: invoices
       - key: STORAGE_PATH
         value: /data/uploads
+      - key: EMAIL_VERIFICATION_ENABLED
+        value: "false"
       - key: EMAIL_PROVIDER
         value: resend
       - key: RESEND_API_KEY

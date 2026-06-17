@@ -109,9 +109,11 @@ export function OnboardingPage() {
       setNewPassword("");
       setConfirmPassword("");
       setResendCooldown(updated.verification_resend_in_seconds ?? RESEND_COOLDOWN_SECONDS);
-      setNotice(
-        `Verification code sent to ${updated.email}. It expires in 10 minutes. You can request a new code after 2 minutes.`,
-      );
+      if (!updated.email_verified) {
+        setNotice(
+          `Verification code sent to ${updated.email}. It expires in 10 minutes. You can request a new code after 2 minutes.`,
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Password change failed");
     } finally {
