@@ -173,6 +173,15 @@ class Settings(BaseSettings):
     email_verification_enabled: bool = Field(
         default=False, validation_alias="EMAIL_VERIFICATION_ENABLED"
     )
+    bootstrap_admin_email: str = Field(
+        default="", validation_alias="BOOTSTRAP_ADMIN_EMAIL"
+    )
+    bootstrap_admin_password: str = Field(
+        default="", validation_alias="BOOTSTRAP_ADMIN_PASSWORD"
+    )
+    bootstrap_admin_role: str = Field(
+        default="admin", validation_alias="BOOTSTRAP_ADMIN_ROLE"
+    )
     log_level: str = Field(default="info", validation_alias="LOG_LEVEL")
     slow_route_ms: int = Field(default=1500, validation_alias="SLOW_ROUTE_MS")
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")

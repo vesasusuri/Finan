@@ -35,6 +35,7 @@ from middleware.cors import setup_cors
 from middleware.request_handler import RequestHandlerMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from utils.file_storage import bind_http_client
+from services.bootstrap_admin import ensure_bootstrap_admin
 from services.upload_recovery import recover_stuck_invoice_uploads
 from static_frontend import register_frontend
 
@@ -84,6 +85,10 @@ async def lifespan(app: FastAPI):
         settings.openai_model,
         settings.openai_model_strong,
     )
+    try:
+        await ensure_bootstrap_admin()
+    except Exception as exc:
+        logger.warning("Bootstrap admin skipped: %s", exc)
     try:
         await recover_stuck_invoice_uploads(app.state.openai_client)
     except Exception as exc:

@@ -53,6 +53,7 @@ def _cookie_params() -> dict:
         "httponly": True,
         "secure": settings.cookie_secure,
         "samesite": settings.cookie_samesite,
+        "path": "/",
     }
 
 

@@ -37,7 +37,7 @@ services:
       - key: COOKIE_SECURE
         value: "true"
       - key: COOKIE_SAMESITE
-        value: none
+        value: lax
       - key: ENABLE_OPENAPI
         value: "true"
       - key: STORAGE_BACKEND
@@ -70,6 +70,12 @@ services:
         sync: false
       - key: EMAIL_INGEST_USER_EMAIL
         value: finance@borek.com
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_ADMIN_ROLE
+        value: admin
 
   - type: worker
     name: finance-ai-worker
