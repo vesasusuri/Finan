@@ -5,6 +5,7 @@ Borek Finance — FastAPI application.
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -35,6 +36,7 @@ from middleware.request_handler import RequestHandlerMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from utils.file_storage import bind_http_client
 from services.upload_recovery import recover_stuck_invoice_uploads
+from static_frontend import register_frontend
 
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
 setup_debug_logging()
@@ -107,12 +109,6 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/openapi.json" if _ENABLE_OPENAPI else None,
 )
-
-
-@app.get("/", tags=["health"])
-async def root():
-    """Public landing route for load balancers and deployment checks."""
-    return {"status": "ok", "message": "API is running"}
 
 
 @app.exception_handler(HTTPException)
@@ -197,3 +193,13 @@ app.include_router(export_router.router, prefix="/api")
 app.include_router(bank_statement_router.router, prefix="/api")
 app.include_router(reconciliation_router.router, prefix="/api")
 app.include_router(review_router.router, prefix="/api")
+
+_frontend_root = Path(settings.frontend_static_path) if settings.frontend_static_path else None
+if _frontend_root and register_frontend(app, _frontend_root):
+    logger.info("Serving frontend from %s", _frontend_root)
+else:
+
+    @app.get("/", tags=["health"])
+    async def root():
+        """Public landing route when no frontend build is bundled."""
+        return {"status": "ok", "message": "API is running"}

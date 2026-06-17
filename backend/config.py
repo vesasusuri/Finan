@@ -220,6 +220,11 @@ class Settings(BaseSettings):
     # Swagger / OpenAPI — disabled in production unless explicitly enabled.
     enable_openapi: bool = Field(default=False, validation_alias="ENABLE_OPENAPI")
 
+    # Vite dist directory — when set and contains index.html, FastAPI serves the SPA.
+    frontend_static_path: str = Field(
+        default="", validation_alias="FRONTEND_STATIC_PATH"
+    )
+
     # Auth rate limits (sliding window via Redis)
     auth_login_rate_limit: int = Field(default=5, validation_alias="AUTH_LOGIN_RATE_LIMIT")
     auth_login_rate_window_seconds: int = Field(

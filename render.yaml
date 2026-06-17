@@ -31,6 +31,7 @@ services:
         generateValue: true
       - key: CORS_ORIGINS
         sync: false
+      # Same-origin deploy: set to your Render URL, e.g. https://finan-htsq.onrender.com
       - key: OPENAI_API_KEY
         sync: false
       - key: COOKIE_SECURE
