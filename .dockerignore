@@ -11,5 +11,6 @@ logs
 **/.pytest_cache
 **/.mypy_cache
 *.md
-DOCS
+DOCS/**
+!DOCS/branding/**
 n8n
