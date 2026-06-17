@@ -11,8 +11,12 @@ import bcrypt
 from config import settings
 from core.debug_logger import get_logger
 from models.user import User
-from services.smtp_service import EmailSendResult, send_email_message
-from services.verification_email_template import build_verification_email_message
+from services.email_delivery import email_delivery_configured, send_email
+from services.email_types import EmailPayload, EmailSendResult
+from services.verification_email_template import (
+    build_verification_email_html,
+    build_verification_email_plain,
+)
 
 logger = get_logger(__name__)
 
@@ -83,10 +87,10 @@ def verify_code(user: User, code: str) -> bool:
 
 
 def log_verification_code_for_local(email: str, code: str) -> None:
-    """Local dev without SMTP: codes go to backend logs, not email."""
+    """Local dev without email provider: codes go to backend logs."""
     if settings.environment != "local":
         return
-    if settings.smtp_host and not settings.log_verification_codes:
+    if email_delivery_configured() and not settings.log_verification_codes:
         return
     logger.info(
         "Email verification code for %s: %s (expires in %s minutes)",
@@ -97,15 +101,19 @@ def log_verification_code_for_local(email: str, code: str) -> None:
 
 
 def send_verification_code(email: str, code: str) -> EmailSendResult:
-    if not settings.smtp_host:
+    if not email_delivery_configured():
         log_verification_code_for_local(email, code)
-        return EmailSendResult(delivered=False, error="smtp_not_configured")
+        return EmailSendResult(delivered=False, error="email_not_configured")
 
-    message = build_verification_email_message(
+    payload = EmailPayload(
         from_addr=settings.smtp_from_email,
         to_addr=email,
         subject="Your Borek Finance verification code",
-        code=code,
-        ttl_minutes=VERIFICATION_CODE_TTL_MINUTES,
+        text=build_verification_email_plain(code, ttl_minutes=VERIFICATION_CODE_TTL_MINUTES),
+        html=build_verification_email_html(
+            code,
+            ttl_minutes=VERIFICATION_CODE_TTL_MINUTES,
+            logo_src=None,
+        ),
     )
-    return send_email_message(message, context="verification_code")
+    return send_email(payload, context="verification_code")

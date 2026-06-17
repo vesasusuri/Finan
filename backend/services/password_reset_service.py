@@ -12,8 +12,12 @@ import bcrypt
 from config import settings
 from core.debug_logger import get_logger
 from models.user import User
-from services.password_reset_email_template import build_password_reset_email_message
-from services.smtp_service import EmailSendResult, send_email_message
+from services.email_delivery import email_delivery_configured, send_email
+from services.email_types import EmailPayload, EmailSendResult
+from services.password_reset_email_template import (
+    build_password_reset_email_html,
+    build_password_reset_email_plain,
+)
 
 logger = get_logger(__name__)
 
@@ -80,15 +84,19 @@ def log_reset_link_for_local(email: str, reset_url: str) -> None:
 
 def send_password_reset_email(email: str, token: str) -> EmailSendResult:
     reset_url = build_reset_url(email, token)
-    if not settings.smtp_host:
+    if not email_delivery_configured():
         log_reset_link_for_local(email, reset_url)
-        return EmailSendResult(delivered=False, error="smtp_not_configured")
+        return EmailSendResult(delivered=False, error="email_not_configured")
 
-    message = build_password_reset_email_message(
+    payload = EmailPayload(
         from_addr=settings.smtp_from_email,
         to_addr=email,
         subject="Reset your Borek Finance password",
-        reset_url=reset_url,
-        ttl_minutes=PASSWORD_RESET_TTL_MINUTES,
+        text=build_password_reset_email_plain(reset_url, ttl_minutes=PASSWORD_RESET_TTL_MINUTES),
+        html=build_password_reset_email_html(
+            reset_url,
+            ttl_minutes=PASSWORD_RESET_TTL_MINUTES,
+            logo_src=None,
+        ),
     )
-    return send_email_message(message, context="password_reset")
+    return send_email(payload, context="password_reset")

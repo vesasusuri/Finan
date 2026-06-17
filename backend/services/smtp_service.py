@@ -3,19 +3,13 @@
 from __future__ import annotations
 
 import smtplib
-from dataclasses import dataclass
 from email.message import EmailMessage
 
 from config import settings
 from core.debug_logger import get_logger
+from services.email_types import EmailSendResult
 
 logger = get_logger(__name__)
-
-
-@dataclass(frozen=True)
-class EmailSendResult:
-    delivered: bool
-    error: str | None = None
 
 
 def log_smtp_config(*, context: str) -> None:

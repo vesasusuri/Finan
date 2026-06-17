@@ -160,6 +160,16 @@ class Settings(BaseSettings):
         default=True,
         validation_alias=AliasChoices("SMTP_USE_TLS", "SMTP_TLS"),
     )
+    # Email delivery — smtp (local) or HTTP API: resend, sendgrid, mailgun, postmark
+    email_provider: str = Field(default="", validation_alias="EMAIL_PROVIDER")
+    resend_api_key: str = Field(default="", validation_alias="RESEND_API_KEY")
+    sendgrid_api_key: str = Field(default="", validation_alias="SENDGRID_API_KEY")
+    mailgun_api_key: str = Field(default="", validation_alias="MAILGUN_API_KEY")
+    mailgun_domain: str = Field(default="", validation_alias="MAILGUN_DOMAIN")
+    mailgun_region: str = Field(default="us", validation_alias="MAILGUN_REGION")
+    postmark_server_token: str = Field(
+        default="", validation_alias="POSTMARK_SERVER_TOKEN"
+    )
     log_level: str = Field(default="info", validation_alias="LOG_LEVEL")
     slow_route_ms: int = Field(default=1500, validation_alias="SLOW_ROUTE_MS")
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
@@ -253,6 +263,23 @@ class Settings(BaseSettings):
     def is_production_like(self) -> bool:
         return self.environment in ("staging", "production")
 
+    @property
+    def effective_email_provider(self) -> str:
+        explicit = self.email_provider.strip().lower()
+        if explicit:
+            return explicit
+        if self.resend_api_key.strip():
+            return "resend"
+        if self.sendgrid_api_key.strip():
+            return "sendgrid"
+        if self.mailgun_api_key.strip() and self.mailgun_domain.strip():
+            return "mailgun"
+        if self.postmark_server_token.strip():
+            return "postmark"
+        if self.smtp_host.strip():
+            return "smtp"
+        return "none"
+
     @model_validator(mode="after")
     def normalize_database_url(self) -> "Settings":
         url = self.database_url
@@ -301,6 +328,13 @@ def validate_settings_on_startup() -> list[str]:
                 warnings.append("SUPABASE_SERVICE_ROLE_KEY is missing")
         if not settings.openai_api_key:
             warnings.append("OPENAI_API_KEY is missing — OCR will not run")
+        from services.email_delivery import email_delivery_configured
+
+        if not email_delivery_configured():
+            warnings.append(
+                "Email delivery is not configured — set EMAIL_PROVIDER=resend "
+                "and RESEND_API_KEY (recommended on Render)"
+            )
         if settings.redis_url.startswith("redis://localhost"):
             warnings.append("REDIS_URL still points at localhost")
         else:
@@ -312,7 +346,7 @@ def validate_settings_on_startup() -> list[str]:
                     "OCR queues and rate limits need REDIS_URL"
                 )
         if not settings.smtp_host:
-            warnings.append("SMTP_HOST is empty — verification emails will not send")
+            warnings.append("SMTP_HOST is empty — use HTTP email provider on Render")
     return warnings
 
 

@@ -122,9 +122,21 @@ class AdminSettingsService:
                 group="Authentication",
             ),
             SettingItem(
+                key="email_provider",
+                label="Email provider",
+                value=settings.effective_email_provider,
+                group="Email",
+            ),
+            SettingItem(
                 key="smtp",
-                label="SMTP email",
+                label="SMTP host",
                 value=_configured(settings.smtp_host),
+                group="Email",
+            ),
+            SettingItem(
+                key="resend",
+                label="Resend API",
+                value=_configured(settings.resend_api_key),
                 group="Email",
             ),
             SettingItem(

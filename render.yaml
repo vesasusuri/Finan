@@ -50,18 +50,20 @@ services:
         value: invoices
       - key: STORAGE_PATH
         value: /data/uploads
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USERNAME
-        sync: false
-      - key: SMTP_PASSWORD
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
         sync: false
       - key: SMTP_FROM_EMAIL
         sync: false
-      - key: SMTP_USE_TLS
-        value: "true"
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: MAILGUN_API_KEY
+        sync: false
+      - key: MAILGUN_DOMAIN
+        sync: false
+      - key: POSTMARK_SERVER_TOKEN
+        sync: false
       - key: EMAIL_INGEST_API_KEY
         sync: false
       - key: EMAIL_INGEST_USER_EMAIL

@@ -11,7 +11,7 @@ import pytest
 from api.controllers.auth_controller import AuthController
 from models.user import User
 from schemas.auth import LoginRequest
-from services.smtp_service import EmailSendResult
+from services.email_types import EmailSendResult
 
 
 def _hash_password(password: str) -> str:
