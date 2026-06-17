@@ -1,19 +1,32 @@
-"""Enqueue OCR after upload rows are committed — must not fail the upload API."""
+"""Dispatch OCR after upload rows are committed — must not fail the upload API."""
 
 from __future__ import annotations
 
+from config import settings
 from core.debug_logger import get_logger
 from core.queue import enqueue_process_invoice_upload
 
 logger = get_logger(__name__)
 
 
-def safe_enqueue_invoice_ocr(
+def dispatch_invoice_ocr(
     upload_id: int,
     user_id: int,
     *,
     priority: str | None = None,
 ) -> None:
+    """Queue or inline-run OCR after upload commit. Never raises to callers."""
+    if settings.ocr_runs_inline:
+        from services.invoice_processing_service import schedule_invoice_ocr
+
+        logger.info(
+            "Scheduling inline OCR for upload_id=%d user_id=%d",
+            upload_id,
+            user_id,
+        )
+        schedule_invoice_ocr(upload_id, user_id)
+        return
+
     try:
         enqueue_process_invoice_upload(
             upload_id,
@@ -26,3 +39,7 @@ def safe_enqueue_invoice_ocr(
             upload_id,
             exc,
         )
+
+
+# Backwards-compatible alias used by upload controllers.
+safe_enqueue_invoice_ocr = dispatch_invoice_ocr

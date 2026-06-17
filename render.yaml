@@ -34,6 +34,9 @@ services:
       # Same-origin deploy: set to your Render URL, e.g. https://finan-htsq.onrender.com
       - key: OPENAI_API_KEY
         sync: false
+      # Render free tier has no background workers — run OCR inside the API process.
+      - key: OCR_PROCESSING_MODE
+        value: inline
       - key: COOKIE_SECURE
         value: "true"
       - key: COOKIE_SAMESITE

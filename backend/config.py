@@ -185,6 +185,10 @@ class Settings(BaseSettings):
     log_level: str = Field(default="info", validation_alias="LOG_LEVEL")
     slow_route_ms: int = Field(default=1500, validation_alias="SLOW_ROUTE_MS")
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
+    # queue = RQ worker (production). inline = OCR in the API process (Render free tier).
+    ocr_processing_mode: str = Field(
+        default="queue", validation_alias="OCR_PROCESSING_MODE"
+    )
     rq_default_queue: str = Field(default="finance-ai", validation_alias="RQ_DEFAULT_QUEUE")
     queue_mode: str = Field(default="adaptive", validation_alias="QUEUE_MODE")
     rq_ocr_high_queue: str = Field(
@@ -276,6 +280,10 @@ class Settings(BaseSettings):
         return self.environment in ("staging", "production")
 
     @property
+    def ocr_runs_inline(self) -> bool:
+        return self.ocr_processing_mode.strip().lower() == "inline"
+
+    @property
     def effective_email_provider(self) -> str:
         explicit = self.email_provider.strip().lower()
         if explicit:
@@ -340,6 +348,11 @@ def validate_settings_on_startup() -> list[str]:
                 warnings.append("SUPABASE_SERVICE_ROLE_KEY is missing")
         if not settings.openai_api_key:
             warnings.append("OPENAI_API_KEY is missing — OCR will not run")
+        if settings.ocr_runs_inline:
+            warnings.append(
+                "OCR_PROCESSING_MODE=inline — extraction runs in the API process "
+                "(no RQ worker required)"
+            )
         from services.email_delivery import email_delivery_configured
 
         if not email_delivery_configured():
@@ -353,10 +366,16 @@ def validate_settings_on_startup() -> list[str]:
             from core.redis_client import redis_ping
 
             if not redis_ping():
-                warnings.append(
-                    "Redis is unreachable — login works in degrade mode; "
-                    "OCR queues and rate limits need REDIS_URL"
-                )
+                if settings.ocr_runs_inline:
+                    warnings.append(
+                        "Redis is unreachable — inline OCR locks may fail; "
+                        "set REDIS_URL to your Key Value instance"
+                    )
+                else:
+                    warnings.append(
+                        "Redis is unreachable — login works in degrade mode; "
+                        "OCR queues and rate limits need REDIS_URL"
+                    )
         if not settings.smtp_host:
             warnings.append("SMTP_HOST is empty — use HTTP email provider on Render")
     return warnings

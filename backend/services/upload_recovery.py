@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from config import settings
 from core.debug_logger import get_logger
-from core.queue import enqueue_process_invoice_upload
+from core.upload_enqueue import dispatch_invoice_ocr
 from db.pool import async_session
 from models.invoice import Invoice
 from models.uploaded_file import UploadedFile
@@ -43,10 +43,10 @@ async def recover_stuck_invoice_uploads(openai_client: AsyncOpenAI | None) -> No
     )
     for upload_id, user_id, _uploaded_at in rows:
         try:
-            enqueue_process_invoice_upload(upload_id, user_id)
+            dispatch_invoice_ocr(upload_id, user_id)
         except Exception as exc:
             logger.warning(
-                "Could not enqueue startup recovery for upload_id=%d: %s",
+                "Could not recover startup OCR for upload_id=%d: %s",
                 upload_id,
                 exc,
             )
