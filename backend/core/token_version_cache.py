@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
-from core.redis_client import get_redis_connection
+from core.redis_client import get_redis_or_none
 
 _CACHE_TTL_SECONDS = 60
 _KEY_PREFIX = "user:token_version:"
 
 
 def cache_token_version(user_id: int, version: int) -> None:
-    get_redis_connection().setex(
-        f"{_KEY_PREFIX}{user_id}", _CACHE_TTL_SECONDS, str(version)
-    )
+    redis = get_redis_or_none()
+    if redis is None:
+        return
+    redis.setex(f"{_KEY_PREFIX}{user_id}", _CACHE_TTL_SECONDS, str(version))
 
 
 def get_cached_token_version(user_id: int) -> int | None:
-    raw = get_redis_connection().get(f"{_KEY_PREFIX}{user_id}")
+    redis = get_redis_or_none()
+    if redis is None:
+        return None
+    raw = redis.get(f"{_KEY_PREFIX}{user_id}")
     if raw is None:
         return None
     try:
@@ -25,4 +29,7 @@ def get_cached_token_version(user_id: int) -> int | None:
 
 
 def invalidate_token_version_cache(user_id: int) -> None:
-    get_redis_connection().delete(f"{_KEY_PREFIX}{user_id}")
+    redis = get_redis_or_none()
+    if redis is None:
+        return
+    redis.delete(f"{_KEY_PREFIX}{user_id}")

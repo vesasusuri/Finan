@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import get_db_session
-from core.redis_client import get_redis_connection
+from core.redis_client import redis_ping
 
 router = APIRouter(tags=["health"])
 
@@ -24,7 +24,7 @@ async def ready(session: AsyncSession = Depends(get_db_session)):
         checks["db"] = "unreachable"
 
     try:
-        if get_redis_connection().ping():
+        if redis_ping():
             checks["redis"] = "ok"
         else:
             checks["redis"] = "unreachable"

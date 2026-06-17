@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from config import settings
-from core.redis_client import get_redis_connection
+from core.redis_client import get_redis_or_none
 
 _REFRESH_PREFIX = "refresh:"
 
@@ -19,22 +19,30 @@ def new_refresh_jti() -> str:
 
 
 def store_refresh_jti(user_id: int, jti: str) -> None:
+    redis = get_redis_or_none()
+    if redis is None:
+        return
     key = f"{_REFRESH_PREFIX}{user_id}:{jti}"
-    get_redis_connection().setex(key, _ttl_seconds(), b"1")
+    redis.setex(key, _ttl_seconds(), b"1")
 
 
 def consume_refresh_jti(user_id: int, jti: str) -> bool:
     """Validate and delete a refresh jti (one-time use on rotation)."""
     if not jti:
         return False
-    redis = get_redis_connection()
+    redis = get_redis_or_none()
+    if redis is None:
+        # Degrade mode: trust signed JWT when Redis is unavailable.
+        return True
     key = f"{_REFRESH_PREFIX}{user_id}:{jti}"
     deleted = redis.delete(key)
     return bool(deleted)
 
 
 def revoke_all_refresh_tokens(user_id: int) -> None:
-    redis = get_redis_connection()
+    redis = get_redis_or_none()
+    if redis is None:
+        return
     pattern = f"{_REFRESH_PREFIX}{user_id}:*"
     for key in redis.scan_iter(match=pattern, count=200):
         redis.delete(key)

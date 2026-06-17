@@ -7,7 +7,7 @@ import time
 from fastapi import HTTPException, Request
 
 from config import settings
-from core.redis_client import get_redis_connection
+from core.redis_client import get_redis_or_none
 
 
 class RateLimitExceeded(HTTPException):
@@ -35,7 +35,9 @@ def _client_ip(request: Request) -> str:
 def _check_rate_limit(*, key: str, limit: int, window_seconds: int) -> None:
     if limit <= 0:
         return
-    redis = get_redis_connection()
+    redis = get_redis_or_none()
+    if redis is None:
+        return
     now = time.time()
     pipe = redis.pipeline()
     pipe.zremrangebyscore(key, 0, now - window_seconds)
@@ -81,7 +83,9 @@ def check_resend_ip_rate_limit(request: Request) -> None:
 
 
 def check_verification_attempts(user_id: int) -> None:
-    redis = get_redis_connection()
+    redis = get_redis_or_none()
+    if redis is None:
+        return
     key = f"verify:attempts:{user_id}"
     attempts = int(redis.get(key) or 0)
     if attempts >= settings.auth_verify_max_attempts:
@@ -94,7 +98,9 @@ def check_verification_attempts(user_id: int) -> None:
 
 
 def record_verification_failure(user_id: int) -> None:
-    redis = get_redis_connection()
+    redis = get_redis_or_none()
+    if redis is None:
+        return
     key = f"verify:attempts:{user_id}"
     pipe = redis.pipeline()
     pipe.incr(key)
@@ -103,4 +109,7 @@ def record_verification_failure(user_id: int) -> None:
 
 
 def clear_verification_attempts(user_id: int) -> None:
-    get_redis_connection().delete(f"verify:attempts:{user_id}")
+    redis = get_redis_or_none()
+    if redis is None:
+        return
+    redis.delete(f"verify:attempts:{user_id}")

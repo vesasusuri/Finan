@@ -300,6 +300,14 @@ def validate_settings_on_startup() -> list[str]:
             warnings.append("OPENAI_API_KEY is missing — OCR will not run")
         if settings.redis_url.startswith("redis://localhost"):
             warnings.append("REDIS_URL still points at localhost")
+        else:
+            from core.redis_client import redis_ping
+
+            if not redis_ping():
+                warnings.append(
+                    "Redis is unreachable — login works in degrade mode; "
+                    "OCR queues and rate limits need REDIS_URL"
+                )
         if not settings.smtp_host:
             warnings.append("SMTP_HOST is empty — verification emails will not send")
     return warnings

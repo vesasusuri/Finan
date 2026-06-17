@@ -24,7 +24,7 @@ def test_login_rate_limit_blocks_after_threshold(monkeypatch):
         (0, True, 6, True),
     ]
     monkeypatch.setattr(
-        "core.auth_rate_limiter.get_redis_connection", lambda: redis
+        "core.auth_rate_limiter.get_redis_or_none", lambda: redis
     )
     monkeypatch.setattr(
         "core.auth_rate_limiter.settings.auth_login_rate_limit", 5
@@ -37,3 +37,8 @@ def test_login_rate_limit_blocks_after_threshold(monkeypatch):
     with pytest.raises(RateLimitExceeded) as exc:
         check_login_rate_limit(_request())
     assert exc.value.status_code == 429
+
+
+def test_login_rate_limit_skipped_when_redis_unavailable(monkeypatch):
+    monkeypatch.setattr("core.auth_rate_limiter.get_redis_or_none", lambda: None)
+    check_login_rate_limit(_request())
